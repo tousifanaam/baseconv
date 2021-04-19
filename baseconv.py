@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
+# Program to inter-convert few number bases.
+# i.e binary, hexadecimal and my favourite decimal
+
 import json
 
 __author__ = "Tousif Anaam"
+__version__ = '$Revision: 0.0 $'
+__source__ = 'https://github.com/tousifanaam/baseconv'
 
 def bindec(number, style=False):
     """
@@ -16,7 +21,7 @@ def bindec(number, style=False):
             d = 2 ** i
             res += d
         elif number[i] != '0':
-            return None
+            raise ValueError("({0}) '{1}' - not a valid binary number.".format(number[i], "".join(number)))
     if len(str(res)) == 3 and style == True:
         res = str(res)
         style = False
@@ -83,8 +88,8 @@ def decbin(number, style=False):
 def hexbin(number, style=False):
     """
     hexadecimal to binary
-    >>> hexbin(F2)
-    '10100010'
+    >>> hexbin('F2')
+    '11110010'
     """
     l = [8, 4, 2, 1]
     number = list(str(number).upper())
@@ -113,7 +118,7 @@ def hexbin(number, style=False):
                 else:
                     res += "0"
         else:
-            return None
+            raise ValueError("({0}) '{1}' - not a valid hexadecimal number.".format(i, "".join(number)))
     if style == True:
         res = res[::-1]
         n_res = ""
@@ -187,11 +192,23 @@ def binhex(number, style=False):
             return binhex(new)
     return res
 
+def binary_addition(nums: tuple, style=False) -> str:
+    """add binary numbers"""
+    return decbin(sum(map(lambda x: bindec(x), nums)), style)
+
+def hex_addition(nums: tuple, style=False):
+    """hexadecimal addition"""
+    return binhex(decbin(sum(map(lambda x: bindec(hexbin(x)), nums))), style)
+
 def ipdecbinclass(ip):
-    """old style ipv4 stuff"""
+    """old style ipv4 stuff [incomplete]"""
     filename = "octets.json"
-    with open(filename) as f:
-        octets = json.load(f)
+    try:
+        with open(filename) as f:
+            octets = json.load(f) # option: use generator func instead 
+    except FileNotFoundError:
+        print("ERR. Missing file `octets.json`")
+        exit()
     ip = ip.split(".")
     ipbin = octets[int(ip[0])] + "." + octets[int(ip[1])] + "." + octets[int(ip[2])] + "." + octets[int(ip[3])]
     classA = list(range(1,127))
@@ -217,6 +234,34 @@ def ipdecbinclass(ip):
     elif int(ip[0]) in classE:
         classtype = "E (_ -- Reserved for Broadcast)"
     return ipbin, classtype
+
+def subnet(ip: str) -> str:
+    """ip: IPv4 and should be in CIDR notation
+    >>> subnet('192.168.0.0/16')
+    '192.168.0.0'
+    """
+    ip, subnet = (ip[:-3], ip[-2:].lstrip('/'))
+    ip_bin = list(map(lambda x: decbin(x), ip.split('.')))
+    for n, i in enumerate(ip_bin):
+        x = i
+        if i == None:
+            x = '0' * 8
+        elif len(i) < 8:
+            x = '0' * (8 - len(i)) + i
+        ip_bin[n] = x
+    pre_bin = "1"*int(subnet) + "0"*(32 - int(subnet))
+    ip_bin = "".join(ip_bin)
+    load = tuple(zip(ip_bin, pre_bin))
+    sub = ''
+    for i in load:
+        if i[1] == '1':
+            sub += i[0]
+        else:
+            break
+    sub = sub + '0'*(32 - len(sub))
+    sub =  [sub[:8], sub[8:16], sub[16:24], sub[24:32]]
+    res = '.'.join(tuple(map(lambda x: str(bindec(x)), sub)))
+    return res
 
 def main(base):
     """
