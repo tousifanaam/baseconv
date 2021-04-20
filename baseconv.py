@@ -200,43 +200,56 @@ def hex_addition(nums: tuple, style=False):
     """hexadecimal addition"""
     return binhex(decbin(sum(map(lambda x: bindec(hexbin(x)), nums))), style)
 
-def ipdecbinclass(ip):
-    """old style ipv4 stuff [incomplete]"""
-    filename = "octets.json"
-    try:
-        with open(filename) as f:
-            octets = json.load(f) # option: use generator func instead 
-    except FileNotFoundError:
-        print("ERR. Missing file `octets.json`")
-        exit()
-    ip = ip.split(".")
-    ipbin = octets[int(ip[0])] + "." + octets[int(ip[1])] + "." + octets[int(ip[2])] + "." + octets[int(ip[3])]
-    classA = list(range(1,127))
-    classB = list(range(128,192))
-    classC = list(range(192,224))
-    classD = list(range(224,240))
-    classE = list(range(240,256))
+def _foo():
+    "generator func for all ipv4 address"
+    for a in range(1,256):
+        for b in range (1,256):
+            for c in range(1,256):
+                for d in range(1,256):
+                    yield '{0}.{1}.{2}.{3}'.format(a, b, c, d)
 
-    if int(ip[0]) in classA:
-        classtype = "A (first 8 bits - network portion -- Unicast)"
-    elif int(ip[0]) == 127:
-        classtype = "A (_ -- Loopback)"
-    elif int(ip[0]) == 0:
-        classtype = "A (_ -- Reserved for Network)"
-    elif int(ip[0]) == 169 and int(ip[1]) == 254:
-        classtype = "B (first 16 bits - network portion -- Unicast -- Link Local)"
-    elif int(ip[0]) in classB:
-        classtype = "B (first 16 bits - network portion -- Unicast)"
-    elif int(ip[0]) in classC:
-        classtype = "C (first 24 bits - network portion -- Unicast)"
-    elif int(ip[0]) in classD:
-        classtype = "D (_ -- Multicast)"
-    elif int(ip[0]) in classE:
-        classtype = "E (_ -- Reserved for Broadcast)"
-    return ipbin, classtype
+def _check_class(ip: str) -> int:
+    """
+    Pre CIDR IPv4 Class
+    0 -> Class A
+    1 -> Class B
+    2 -> Class C
+    3 -> Class D
+    4 -> Class E
+    """
+    check = decbin(ip.split('.')[0])
+    if check == None:
+        check = '0' * 8
+    elif len(check) < 8:
+        check = '0' * (8 - len(check)) + check
+    if check.startswith('0'):
+        return 0
+    elif check.startswith('10'):
+        return 1
+    elif check.startswith('110'):
+        return 2
+    elif check.startswith('1110'):
+        return 3
+    elif check.startswith('1111'):
+        return 4
+
+def ip_to_cidr_sub(ip, subnet):
+    subnet = [decbin(i) for i in subnet.split('.')]
+    n = 0
+    for i in subnet:
+        if '0' not in i:
+            n += len(i)
+        else:
+            for x in i:
+                if x == '1':
+                    n += 1
+                else:
+                    break
+            break
+    return ip + "/{0}".format(n)
 
 def subnet(ip: str) -> str:
-    """ip: IPv4 and should be in CIDR notation
+    """
     >>> subnet('192.168.0.0/16')
     '192.168.0.0'
     """
