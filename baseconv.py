@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-# Program to inter-convert few number bases.
-# i.e binary, hexadecimal and my favourite decimal
-
 import json
 
+
 __author__ = "Tousif Anaam"
-__version__ = '$Revision: 0.0 $'
+__version__ = '$Revision: 0.2 $'
 __source__ = 'https://github.com/tousifanaam/baseconv'
 
 def bindec(number, style=False):
@@ -248,12 +246,12 @@ def ip_to_cidr_sub(ip, subnet):
             break
     return ip + "/{0}".format(n)
 
-def subnet(ip: str) -> str:
+def subnet(cidr: str, full: bool = False) -> str:
     """
-    >>> subnet('192.168.0.0/16')
+    >>> subnet('192.168.0.1/16')
     '192.168.0.0'
     """
-    ip, subnet = (ip[:-3], ip[-2:].lstrip('/'))
+    ip, subnet = (cidr[:-3], cidr[-2:].lstrip('/'))
     ip_bin = list(map(lambda x: decbin(x), ip.split('.')))
     for n, i in enumerate(ip_bin):
         x = i
@@ -274,6 +272,15 @@ def subnet(ip: str) -> str:
     sub = sub + '0'*(32 - len(sub))
     sub =  [sub[:8], sub[8:16], sub[16:24], sub[24:32]]
     res = '.'.join(tuple(map(lambda x: str(bindec(x)), sub)))
+    if full:
+        res = {'subnet':res}
+        n = pre_bin.count('1')
+        net, host = ip_bin[:n], ip_bin[n:]
+        res['first-host'] = '.'.join(res['subnet'].split('.')[:3]) + '.' + str(int(res['subnet'].split('.')[3]) + 1)
+        a = net + '1'*(len(host) - 1) + '0'
+        res['last-host'] = '.'.join(tuple(map(lambda x: str(bindec(x)), [a[:8], a[8:16], a[16:24], a[24:32]])))
+        a = net + '1'*(len(host))
+        res['broadcast'] = '.'.join(tuple(map(lambda x: str(bindec(x)), [a[:8], a[8:16], a[16:24], a[24:32]])))
     return res
 
 def main(base):
