@@ -243,11 +243,14 @@ def ip_to_cidr_sub(ip, subnet):
             break
     return ip + "/{0}".format(n)
 
-def subnet(cidr: str, full: bool = False) -> str:
+def subnet(cidr: str, details: bool = False):
     """
     >>> subnet('192.168.0.1/16')
     '192.168.0.0'
     """
+    # no argument validation in place atm
+    # invalid argument will result in
+    # incorrect results
     ip, subnet = (cidr[:-3], cidr[-2:].lstrip('/'))
     ip_bin = list(map(lambda x: decbin(x), ip.split('.')))
     for n, i in enumerate(ip_bin):
@@ -269,13 +272,13 @@ def subnet(cidr: str, full: bool = False) -> str:
     sub = sub + '0'*(32 - len(sub))
     sub =  [sub[:8], sub[8:16], sub[16:24], sub[24:32]]
     res = '.'.join(tuple(map(lambda x: str(bindec(x)), sub)))
-    if full:
+    if details:
         res = {'subnet':res}
-        n = pre_bin.count('1')
-        net, host = ip_bin[:n], ip_bin[n:]
-        res['first-host'] = '.'.join(res['subnet'].split('.')[:3]) + '.' + str(int(res['subnet'].split('.')[3]) + 1)
+        res['subnet_mask'] = '.'.join(map(lambda x: str(bindec(x)),[pre_bin[:8], pre_bin[8:16], pre_bin[16:24], pre_bin[24:32]]))
+        net, host = ip_bin[:pre_bin.count('1')], ip_bin[pre_bin.count('1'):]
+        res['first_host'] = '.'.join(res['subnet'].split('.')[:3]) + '.' + str(int(res['subnet'].split('.')[3]) + 1)
         a = net + '1'*(len(host) - 1) + '0'
-        res['last-host'] = '.'.join(tuple(map(lambda x: str(bindec(x)), [a[:8], a[8:16], a[16:24], a[24:32]])))
+        res['last_host'] = '.'.join(tuple(map(lambda x: str(bindec(x)), [a[:8], a[8:16], a[16:24], a[24:32]])))
         a = net + '1'*(len(host))
         res['broadcast'] = '.'.join(tuple(map(lambda x: str(bindec(x)), [a[:8], a[8:16], a[16:24], a[24:32]])))
     return res
