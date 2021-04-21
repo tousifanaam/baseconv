@@ -49,7 +49,7 @@ def decbin(number, style=False):
     try:
         number = int(number)
     except ValueError:
-        return None
+        raise ValueError('{0} - invalid base 10 integer.'.format(number))
     ons = []
     for i in range(0,number):
         bit = 2 ** i
@@ -198,7 +198,7 @@ def hexdec(number, style=False):
     4095
     """
     return bindec(hexbin(number), style)
-    
+
 def binary_addition(nums: tuple, style=False) -> str:
     """add binary numbers"""
     return decbin(sum(map(lambda x: bindec(x), nums)), style)
