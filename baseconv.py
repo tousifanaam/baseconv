@@ -140,11 +140,9 @@ def binhex(number, style=False):
     >>> binhex(1111)
     'F'
     """
-    def chunk(arr, size):
-        l = []
-        for i in range(0, len(arr), size):
-            l.append(arr[i:i+size])
-        return l
+    def chunk(a, n: int):
+        return [a[i: i + n] for i in range(0, len(a), n)]
+
     if len(str(number)) % 4 == 0:
         number = chunk(list(str(number)), 4)
         l = [8, 4, 2, 1]
