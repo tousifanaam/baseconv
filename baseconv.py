@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-import json
-
 
 __author__ = "Tousif Anaam"
 __version__ = '$Revision: 0.2 $'
 __source__ = 'https://github.com/tousifanaam/baseconv'
+
 
 def bindec(number, style=False):
     """
