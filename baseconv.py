@@ -143,11 +143,9 @@ def binhex(number, style=False):
         return [a[i: i + n] for i in range(0, len(a), n)]
 
     if len(str(number)) % 4 == 0:
-        number = chunk(list(str(number)), 4)
+        x, number = number, chunk(list(str(number)), 4)
         l = [8, 4, 2, 1]
-        hexex = [
-            'A', 'B', 'C', 
-            'D', 'E', 'F']
+        hexex = ['A', 'B', 'C', 'D', 'E', 'F']
         res = ""
         for i in number:
             count = 0
@@ -155,7 +153,7 @@ def binhex(number, style=False):
                 if i[n] == '1':
                     count += l[n]
                 elif i[n] != "0":
-                    return None
+                    raise ValueError("({0}) '{1}' - invalid binary number.".format(i[n], x))
             if count <= 9:
                 res += str(count)
             else:
@@ -187,6 +185,20 @@ def binhex(number, style=False):
             return binhex(new)
     return res
 
+def dechex(number, style=False):
+    """
+    >>> dechex('4095')
+    'FFF'
+    """
+    return binhex(decbin(number), style)
+
+def hexdec(number, style=False):
+    """
+    >>> hexdec('FFF')
+    4095
+    """
+    return bindec(hexbin(number), style)
+    
 def binary_addition(nums: tuple, style=False) -> str:
     """add binary numbers"""
     return decbin(sum(map(lambda x: bindec(x), nums)), style)
@@ -228,10 +240,14 @@ def _check_class(ip: str) -> int:
     elif check.startswith('1111'):
         return 4
 
-def ip_to_cidr_sub(ip, subnet):
-    subnet = [decbin(i) for i in subnet.split('.')]
+def ip_to_cidr(ip, mask):
+    """
+    >>> ip_to_cidr('192.168.0.1', '255.255.255.0')
+    '192.168.0.1/24'
+    """
+    mask = [decbin(i) for i in mask.split('.')]
     n = 0
-    for i in subnet:
+    for i in mask:
         if '0' not in i:
             n += len(i)
         else:
