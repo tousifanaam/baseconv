@@ -267,7 +267,7 @@ def subnet(cidr: str, details: bool = False):
     # no argument validation in place atm
     # invalid argument will result in
     # incorrect results
-    ip, subnet = (cidr[:-3], cidr[-2:].lstrip('/'))
+    ip, subnet = (cidr[:-2].rstrip('/'), cidr[-2:].lstrip('/'))
     ip_bin = list(map(lambda x: decbin(x), ip.split('.')))
     for n, i in enumerate(ip_bin):
         x = i
@@ -295,10 +295,35 @@ def subnet(cidr: str, details: bool = False):
         res['first_host'] = '.'.join(res['subnet'].split('.')[:3]) + '.' + str(int(res['subnet'].split('.')[3]) + 1)
         a = net + '1'*(len(host) - 1) + '0'
         res['last_host'] = '.'.join(tuple(map(lambda x: str(bindec(x)), [a[:8], a[8:16], a[16:24], a[24:32]])))
+        res['host_count'] = (2 ** len(host)) - 2
+        res['net_count'] = (2 ** len(host))
         a = net + '1'*(len(host))
         res['broadcast'] = '.'.join(tuple(map(lambda x: str(bindec(x)), [a[:8], a[8:16], a[16:24], a[24:32]])))
     return res
 
+def cidr_to_netmask(cidr):
+    """
+    >>> cidr_to_netmask('208.130.28.0/22')
+    ('208.130.28.0', '255.255.252.0')
+    """
+    return subnet(cidr, True)['subnet'], subnet(cidr, True)['subnet_mask']
+
+def cidr_verbose(cidr: str):
+    """
+    Really elegant code! Using the builtin
+    ipaddress module.
+
+    inspired source: https://gist.github.com/vndmtrx/dc412e4d8481053ddef85c678f3323a6#gistcomment-3237804
+    """
+    import ipaddress
+
+    ipi = ipaddress.ip_interface(cidr)
+    print("Address:   ", ipi.ip)
+    print("Mask:      ", ipi.netmask)
+    print("Cidr:      ", str(ipi.network).split('/')[1])
+    print("Network:   ", str(ipi.network).split('/')[0])
+    print("Broadcast: ", ipi.network.broadcast_address)
+    
 def main(base):
     """
     --- main func ---
@@ -327,4 +352,4 @@ if __name__ == '__main__':
         main(sys.argv[1])
     except IndexError:
         print("usage: baseconv.py [-b] or [-h] or [-d]")
-        print("ERR: argument missing", end='')
+        print("ERR: argument missing")
