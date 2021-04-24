@@ -293,6 +293,7 @@ def subnet(cidr: str, details: bool = False, more_details: bool = False):
         res['cidr'] = cidr
         res['subnet_mask'] = '.'.join(map(lambda x: str(bindec(x)),[pre_bin[:8], pre_bin[8:16], pre_bin[16:24], pre_bin[24:32]]))
         net, host = ip_bin[:pre_bin.count('1')], ip_bin[pre_bin.count('1'):]
+        res['subnet_mask_cidr'] = int(res['cidr'][-2:].lstrip('/'))
         res['first_host'] = '.'.join(res['subnet'].split('.')[:3]) + '.' + str(int(res['subnet'].split('.')[3]) + 1)
         a = net + '1'*(len(host) - 1) + '0'
         res['last_host'] = '.'.join(tuple(map(lambda x: str(bindec(x)), [a[:8], a[8:16], a[16:24], a[24:32]])))
@@ -343,6 +344,10 @@ def divide_subnet(cidr: str, hostcount: int, details: bool = False, more_details
             results['parent_subnet'] = cidr1
             results['first_network'] = results['_all'][0]
             results['last_network'] = results['_all'][-1]
+            results['subnet_mask'] = new_mask
+            results['subnet_mask_cidr'] = data2['subnet_mask_cidr']
+            results['host_count_per_net'] = hostcount
+            results['net_count'] = hostcount + 2
             if more_details or full_details:
                 results['_all'] = [subnet(i, details=True) for i in results['_all']]
                 if full_details:
