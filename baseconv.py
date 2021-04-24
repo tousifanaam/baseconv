@@ -328,7 +328,7 @@ def divide_subnet(cidr: str, hostcount: int, details: bool = False, more_details
     change_start_index = cur_mask_bin.count('1')
     new = cur_mask_bin[:change_start_index] + ('1' * n + '0' * (len(cur_mask_bin[change_start_index:]) - n))
     new_mask = '.'.join(map(lambda x: str(bindec(x)),[new[:8], new[8:16], new[16:24], new[24:32]]))
-    cidr2 = ip_to_cidr(cur_sub, new_mask)
+    cidr2 = subnet(ip_to_cidr(cur_sub, new_mask), details=True)['cidr']
     def _divide_subnet(cidr1, cidr2):
         data1 = subnet(cidr1, more_details=True)
         data2 = subnet(cidr2, more_details=True)
