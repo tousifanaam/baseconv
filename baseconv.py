@@ -310,25 +310,32 @@ def subnet(cidr: str, details: bool = False, more_details: bool = False):
             extra['subnet_host_portion_bin_string_no_dot'] = host
     return res
 
-def log(number: int, base: int = 2):
+def _log(number: int, base: int = 2):
 	# base ^ x = number <-- x is answer
     # explicit condition for only this case
-    for i in range(-10000, 10001):
+    for i in range(1, 33):
         trial = base ** i
-        if trial >= number:
+        if trial == number:
             return i
     else:
         raise ValueError('Failed to solve log_{0}({1})'.format(base, number))
 
-def divide_subnet(cidr: str, hostcount: int, details: bool = False, more_details: bool = False, full_details: bool = False):
+def divide_subnet(cidr: str, hostcount: int = None, netcount: int = None, only_cidr: bool = False, details: bool = False, more_details: bool = False, full_details: bool = False):
     data = subnet(cidr, more_details=True)
-    n = log(hostcount)
-    cur_sub = data['subnet']
-    cur_mask_bin = data['_extra']['mask_bin_string_no_dot']
-    change_start_index = cur_mask_bin.count('1')
-    new = cur_mask_bin[:change_start_index] + ('1' * n + '0' * (len(cur_mask_bin[change_start_index:]) - n))
-    new_mask = '.'.join(map(lambda x: str(bindec(x)),[new[:8], new[8:16], new[16:24], new[24:32]]))
-    cidr2 = subnet(ip_to_cidr(cur_sub, new_mask), details=True)['cidr']
+    for i in range(1, 31):
+        if subnet("{0}/{1}".format(data['subnet'], i), details=True)['host_count'] == hostcount:
+            new_mask = subnet("{0}/{1}".format(data['subnet'], i), details=True)['subnet_mask']
+    try:
+        cidr2 = ip_to_cidr(data['subnet'], new_mask)
+    except UnboundLocalError:
+        raise ValueError("divide_subnet() failed!") from None
+    if only_cidr:
+        return cidr2
+    if netcount != None:
+        hostcount = netcount - 2
+    elif hostcount == None:
+        raise TypeError('divide_subnet() missing hostcount argument.')
+    n = _log(hostcount + 2)
     def _divide_subnet(cidr1, cidr2):
         data1 = subnet(cidr1, more_details=True)
         data2 = subnet(cidr2, more_details=True)
@@ -346,8 +353,8 @@ def divide_subnet(cidr: str, hostcount: int, details: bool = False, more_details
             results['last_network'] = results['_all'][-1]
             results['subnet_mask'] = new_mask
             results['subnet_mask_cidr'] = data2['subnet_mask_cidr']
-            results['host_count_per_net'] = hostcount
-            results['net_count'] = hostcount + 2
+            results['host_count_per_net'] = len(results['_all']) - 2
+            results['net_count'] = len(results['_all'])
             if more_details or full_details:
                 results['_all'] = [subnet(i, details=True) for i in results['_all']]
                 if full_details:
