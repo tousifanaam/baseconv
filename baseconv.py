@@ -259,7 +259,7 @@ def ip_to_cidr(ip, mask):
             break
     return ip + "/{0}".format(n)
 
-def subnet(cidr: str, details: bool = False):
+def subnet(cidr: str, details: bool = False, more_details: bool = False):
     """
     >>> subnet('192.168.0.1/16')
     '192.168.0.0'
@@ -288,8 +288,9 @@ def subnet(cidr: str, details: bool = False):
     sub = sub + '0'*(32 - len(sub))
     sub =  [sub[:8], sub[8:16], sub[16:24], sub[24:32]]
     res = '.'.join(tuple(map(lambda x: str(bindec(x)), sub)))
-    if details:
+    if details or more_details:
         res = {'subnet':res}
+        res['cidr'] = cidr
         res['subnet_mask'] = '.'.join(map(lambda x: str(bindec(x)),[pre_bin[:8], pre_bin[8:16], pre_bin[16:24], pre_bin[24:32]]))
         net, host = ip_bin[:pre_bin.count('1')], ip_bin[pre_bin.count('1'):]
         res['first_host'] = '.'.join(res['subnet'].split('.')[:3]) + '.' + str(int(res['subnet'].split('.')[3]) + 1)
@@ -299,8 +300,56 @@ def subnet(cidr: str, details: bool = False):
         res['net_count'] = (2 ** len(host))
         a = net + '1'*(len(host))
         res['broadcast'] = '.'.join(tuple(map(lambda x: str(bindec(x)), [a[:8], a[8:16], a[16:24], a[24:32]])))
+        if more_details:
+            res['_extra'] = {}
+            extra = res['_extra']
+            extra['mask_bin_string_no_dot'] = pre_bin
+            extra['subnet_bin_string_no_dot'] = ip_bin
+            extra['subnet_net_portion_bin_string_no_dot'] = net
+            extra['subnet_host_portion_bin_string_no_dot'] = host
     return res
 
+def log(number: int, base: int = 2):
+	# base ^ x = number <-- x is answer
+    # explicit condition for only this case
+    for i in range(-10000, 10001):
+        trial = base ** i
+        if trial >= number:
+            return i
+    else:
+        raise ValueError('Failed to solve log_{0}({1})'.format(base, number))
+
+def divide_subnet(cidr: str, hostcount: int, details: bool = False, more_details: bool = False, full_details: bool = False):
+    data = subnet(cidr, more_details=True)
+    n = log(hostcount)
+    cur_sub = data['subnet']
+    cur_mask_bin = data['_extra']['mask_bin_string_no_dot']
+    change_start_index = cur_mask_bin.count('1')
+    new = cur_mask_bin[:change_start_index] + ('1' * n + '0' * (len(cur_mask_bin[change_start_index:]) - n))
+    new_mask = '.'.join(map(lambda x: str(bindec(x)),[new[:8], new[8:16], new[16:24], new[24:32]]))
+    cidr2 = ip_to_cidr(cur_sub, new_mask)
+    def _divide_subnet(cidr1, cidr2):
+        data1 = subnet(cidr1, more_details=True)
+        data2 = subnet(cidr2, more_details=True)
+        s = '0' * n
+        results = []
+        for _ in range(data2['net_count']):
+            new = data1['_extra']['subnet_net_portion_bin_string_no_dot']+ s + data2['_extra']['subnet_host_portion_bin_string_no_dot']
+            res = '.'.join(map(lambda x: str(bindec(x)),[new[:8], new[8:16], new[16:24], new[24:32]])) + '/' + cidr2[-2:].lstrip('/')
+            results.append(res)
+            s = binary_addition((s, '1'))
+        if details or more_details or full_details:
+            results = {'_all': results}
+            results['parent_subnet'] = cidr1
+            results['first_network'] = results['_all'][0]
+            results['last_network'] = results['_all'][-1]
+            if more_details or full_details:
+                results['_all'] = [subnet(i, details=True) for i in results['_all']]
+                if full_details:
+                    results['_all'] = [subnet(i['cidr'], more_details=True) for i in results['_all']]
+        return results
+    return _divide_subnet(data['cidr'], cidr2)
+    
 def cidr_to_netmask(cidr):
     """
     >>> cidr_to_netmask('208.130.28.0/22')
