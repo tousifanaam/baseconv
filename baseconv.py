@@ -259,6 +259,19 @@ def ip_to_cidr(ip, mask):
             break
     return ip + "/{0}".format(n)
 
+
+wildcards = {'32': '255.255.255.255', '31': '255.255.255.254', '30': '255.255.255.252', 
+            '29': '255.255.255.248', '28': '255.255.255.240', '27': '255.255.255.224', 
+            '26': '255.255.255.192', '25': '255.255.255.128', '24': '255.255.255.0', 
+            '23': '255.255.254.0', '22': '255.255.252.0', '21': '255.255.248.0', 
+            '20': '255.255.240.0', '19': '255.255.224.0', '18': '255.255.192.0',
+            '17': '255.255.128.0', '16': '255.255.0.0', '15': '255.254.0.0', 
+            '14': '255.252.0.0', '13': '255.248.0.0', '12': '255.240.0.0', 
+            '11': '255.224.0.0', '10': '255.192.0.0', '9': '255.128.0.0', 
+            '8': '255.0.0.0', '7': '254.0.0.0', '6': '252.0.0.0', 
+            '5': '248.0.0.0', '4': '240.0.0.0', '3': '224.0.0.0', 
+            '2': '192.0.0.0', '1': '128.0.0.0', '0': '0.0.0.0',}
+
 def subnet(cidr: str, details: bool = False, more_details: bool = False):
     """
     >>> subnet('192.168.0.1/16')
@@ -301,6 +314,7 @@ def subnet(cidr: str, details: bool = False, more_details: bool = False):
         res['net_count'] = (2 ** len(host))
         a = net + '1'*(len(host))
         res['broadcast'] = '.'.join(tuple(map(lambda x: str(bindec(x)), [a[:8], a[8:16], a[16:24], a[24:32]])))
+        res['wildcard'] = [v for k,v in wildcards.items() if k == str(res['subnet_mask_cidr'])][0]
         if more_details:
             res['_extra'] = {}
             extra = res['_extra']
@@ -320,21 +334,15 @@ def _log(number: int, base: int = 2):
     else:
         raise ValueError('Failed to solve log_{0}({1})'.format(base, number))
 
-def divide_subnet(cidr: str, hostcount: int = None, netcount: int = None, only_cidr: bool = False, details: bool = False, more_details: bool = False, full_details: bool = False):
+def divide_subnet_per_host(cidr: str, hostcount: int = None, only_cidr: bool = False, details: bool = False, more_details: bool = False, full_details: bool = False):
+    """ + _ + """
     data = subnet(cidr, more_details=True)
-    for i in range(1, 31):
+    for i in range(data['subnet_mask_cidr'] + 1, 31):
         if subnet("{0}/{1}".format(data['subnet'], i), details=True)['host_count'] == hostcount:
             new_mask = subnet("{0}/{1}".format(data['subnet'], i), details=True)['subnet_mask']
-    try:
-        cidr2 = ip_to_cidr(data['subnet'], new_mask)
-    except UnboundLocalError:
-        raise ValueError("divide_subnet() failed!") from None
+    cidr2 = ip_to_cidr(data['subnet'], new_mask)
     if only_cidr:
         return cidr2
-    if netcount != None:
-        hostcount = netcount - 2
-    elif hostcount == None:
-        raise TypeError('divide_subnet() missing hostcount argument.')
     n = _log(hostcount + 2)
     def _divide_subnet(cidr1, cidr2):
         data1 = subnet(cidr1, more_details=True)
@@ -346,6 +354,8 @@ def divide_subnet(cidr: str, hostcount: int = None, netcount: int = None, only_c
             res = '.'.join(map(lambda x: str(bindec(x)),[new[:8], new[8:16], new[16:24], new[24:32]])) + '/' + cidr2[-2:].lstrip('/')
             results.append(res)
             s = binary_addition((s, '1'))
+            if len(s) < n:
+                s = '0'*(n - len(s)) + s
         if details or more_details or full_details:
             results = {'_all': results}
             results['parent_subnet'] = cidr1
@@ -361,7 +371,53 @@ def divide_subnet(cidr: str, hostcount: int = None, netcount: int = None, only_c
                     results['_all'] = [subnet(i['cidr'], more_details=True) for i in results['_all']]
         return results
     return _divide_subnet(data['cidr'], cidr2)
-    
+
+def divide_subnet_per_net(cidr: str, netcount: int, only_cidr: bool = False, details: bool = False, more_details: bool = False, full_details: bool = False):
+    data = subnet(cidr, more_details=True)
+    v = netcount
+    while True:
+        try:
+            _log(v)
+            break
+        except ValueError:
+            v += 1
+    x1 = data['_extra']['mask_bin_string_no_dot'].count('1')
+    for i in range(data['subnet_mask_cidr'] + 1, 33):
+        if data['net_count'] / subnet(f"{data['subnet']}/{i}", details=True)['net_count'] == v:
+            r = subnet(f"{data['subnet']}/{i}", more_details=True)
+            sub_cidr = r['subnet_mask_cidr']
+            sub_mask = r['subnet_mask']
+            x2 = r['_extra']['mask_bin_string_no_dot'].count('1')
+    if only_cidr:
+        return r['cidr']
+    change_index = x2 - x1
+    s = '0' * change_index
+    results = []
+    while True:
+        b = "{0}".format(data['_extra']['subnet_net_portion_bin_string_no_dot']) + s + r['_extra']['subnet_host_portion_bin_string_no_dot']
+        res = '.'.join(map(lambda x: str(bindec(x)),[b[:8], b[8:16], b[16:24], b[24:32]])) + '/' + str(sub_cidr)
+        results.append(res)
+        s = binary_addition((s, '1'))
+        if len(s) < change_index:
+            s = '0'*(change_index - len(s)) + s
+        if s == '1' * change_index:
+            b = "{0}".format(data['_extra']['subnet_net_portion_bin_string_no_dot']) + s + r['_extra']['subnet_host_portion_bin_string_no_dot']
+            res = '.'.join(map(lambda x: str(bindec(x)),[b[:8], b[8:16], b[16:24], b[24:32]])) + '/' + str(sub_cidr)
+            results.append(res)
+            break
+    if details or more_details or full_details:
+        results = {'_all': results}
+        results['parent_subnet'] = data['subnet'] + '/' + str(data['subnet_mask_cidr'])
+        results['first_network'] = results['_all'][0]
+        results['last_network'] = results['_all'][-1]
+        results['subnet_mask'] = sub_mask
+        results['subnet_mask_cidr'] = sub_cidr
+        if more_details or full_details:
+            results['_all'] = [subnet(i, details=True) for i in results['_all']]
+            if full_details:
+                results['_all'] = [subnet(i['cidr'], more_details=True) for i in results['_all']]
+    return results
+
 def cidr_to_netmask(cidr):
     """
     >>> cidr_to_netmask('208.130.28.0/22')
